@@ -1,7 +1,7 @@
 # Pipe Drop – chat-controlled YouTube Live game (v1)
 Static site (index.html + game.js + matter.min.js). 1280x720, dark theme.
 ## Commands
-- `!1`..`!6` drop your avatar into that pipe; lands in a bin worth gold × current multiplier (grid cycles each second; board re-rolls every 60s round).
+- `!1` drops into the left Ouroboros ring, `!2` into the right ring. Each tile your ball hits pays its number in gold.
 - `!toll 0-15` only the current 👑 leader can set it; every drop by someone else pays the leader that much gold.
 - `!song` reserved (set display text with `?song=Name`).
 ## Test
