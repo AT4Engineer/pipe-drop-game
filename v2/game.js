@@ -103,7 +103,7 @@ function drawBoard(now){
     T(v,(x0+x1)/2,BB-16,v>=500?20:v>=50?20:22,f?'#fff':col,'center',900,v>=500?16+f*20:8+f*20)});
   ctx.fillStyle=C.cy;binEdges.slice(1,-1).forEach(x=>{glow(C.cy,10);ctx.fillRect(x-2.5,BIN_TOP,5,68)});ctx.shadowBlur=0}
 function drawBalls(now){balls.forEach(b=>{const{x,y}=b.position;b.trail.push({x,y});if(b.trail.length>14)b.trail.shift();
-    const col=b.gold?C.gd:`hsl(${hue(b.user)},100%,65%)`;ctx.lineCap='round';for(let i=1;i<b.trail.length;i++){ctx.strokeStyle=col;ctx.globalAlpha=i/b.trail.length*.45;ctx.lineWidth=b.r*1.4*i/b.trail.length;ctx.beginPath();ctx.moveTo(b.trail[i-1].x,b.trail[i-1].y);ctx.lineTo(b.trail[i].x,b.trail[i].y);ctx.stroke()}ctx.globalAlpha=1;
+    const col=b.gold?C.gd:`hsl(${hue(b.user)},100%,65%)`;ctx.lineCap='round';for(let i=1;i<b.trail.length;i++){if(Math.hypot(b.trail[i].x-b.trail[i-1].x,b.trail[i].y-b.trail[i-1].y)>30)continue;ctx.strokeStyle=col;ctx.globalAlpha=i/b.trail.length*.45;ctx.lineWidth=b.r*1.4*i/b.trail.length;ctx.beginPath();ctx.moveTo(b.trail[i-1].x,b.trail[i-1].y);ctx.lineTo(b.trail[i].x,b.trail[i].y);ctx.stroke()}ctx.globalAlpha=1;
     if(b.gold){glow(C.gd,30);ctx.fillStyle=C.gd;ctx.beginPath();ctx.arc(x,y,b.r+3,0,7);ctx.fill();ctx.shadowBlur=0}
     avatar(b.user,x,y,b.r,b.gold?C.gd:col);if(b.gold)T('x3',x,y-b.r-6,14,C.gd,'center',900,10);else if(y<BIN_TOP)T(fmt(lb[b.user]||0),x,y+b.r+12,10,'#fffc','center',600)})}
 function drawLoop(now){ctx.strokeStyle='#2ee6ff12';ctx.lineWidth=36;ctx.lineJoin='round';ctx.strokeRect(LI,LI,LW,LH);
