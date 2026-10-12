@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Pipe Drop – @AT4Engineer</title>
+<style>
+html,body{margin:0;background:#0d0f14;color:#eee;font-family:Segoe UI,Arial,sans-serif;overflow:hidden}
+#stage{position:relative;width:1280px;height:720px;background:radial-gradient(#1a1f2b,#0b0d12)}
+canvas{position:absolute;left:0;top:0}
+.panel{position:absolute;background:#151a24cc;border:1px solid #2c3445;border-radius:10px;padding:10px}
+#lb{left:16px;top:16px;width:300px}#lb h3,#mg h3{margin:0 0 6px;color:#ffd54a;font-size:18px}
+.row{display:flex;justify-content:space-between;font-size:17px;padding:3px 0}
+#mg{left:16px;top:190px;width:300px}#grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.cell{background:#22303f;text-align:center;padding:8px 0;border-radius:6px;font-weight:bold}.cell.hot{background:#2e7d32;color:#fff}
+#info{left:16px;top:400px;width:300px;font-size:15px;line-height:1.6}
+#pop{position:absolute;left:500px;top:300px;font-size:44px;font-weight:900;color:#ffd54a;text-shadow:0 0 12px #000;opacity:0;transition:opacity .3s;pointer-events:none;text-align:center;width:500px}
+#test{position:absolute;right:8px;bottom:8px;background:#000c;border:1px solid #444;padding:8px;border-radius:8px;font-size:13px;z-index:9}
+#test input{width:110px}#test.hide{display:none}
+#togg{position:absolute;right:8px;bottom:8px;z-index:10;font-size:11px}
+</style></head><body><div id="stage">
+<canvas id="c" width="1280" height="720"></canvas>
+<div id="lb" class="panel"><h3>🏆 Gold Leaderboard</h3><div id="lbrows"></div></div>
+<div id="mg" class="panel"><h3>✖ Multiplier <span id="timer" style="float:right;color:#9cf"></span></h3><div id="grid"></div></div>
+<div id="info" class="panel">Type <b>!1</b>–<b>!6</b> to drop into a pipe<br><b>!toll 0-15</b> leader sets toll per drop<br>Toll: <b id="toll">0</b> gold → 👑 <span id="crown">-</span><br>🎵 Now playing <b>!song</b>: <span id="song">Lo-fi Beats</span><br><span id="status" style="color:#888"></span></div>
+<div id="pop"></div>
+<button id="togg">TEST</button>
+<div id="test"><b>TEST MODE</b><br><input id="tu" placeholder="username" value="Tester"> <input id="tm" placeholder="!2" value="!2"> <button id="ts">Send</button><br><button id="tb">Spawn 10 bots</button> <button id="tr">Reset LB</button></div>
+</div>
+<script src="matter.min.js"></script>
+<script src="game.js"></script></body></html>
