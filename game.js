@@ -13,7 +13,7 @@ const GAMES=['Ouroboros','Tempered Temptation','Human Bridge','Rise & Grind'];
 const BINV=[0,1,2,4,5,250,5,4,2,1,0];
 // ---------- boards ----------
 const BOARDS=[{x:48,y:222,w:390,h:448,gi:0},{x:850,y:62,w:386,h:610,gi:1}];
-BOARDS.forEach((B,i)=>{B.idx=i;B.bodies=[];B.cx=B.x+B.w/2;B.t0=performance.now();
+BOARDS.forEach((B,i)=>{B.idx=i;B.bodies=[];B.cx=B.x+B.w/2;B.t0=performance.now()-i*ROUND/2;
   const bw=B.w/BINV.length;B.binW=bw;B.fixed=[Bodies.rectangle(B.x-6,B.y+B.h/2+30,12,B.h+120,{isStatic:true,label:'wall'}),Bodies.rectangle(B.x+B.w+6,B.y+B.h/2+30,12,B.h+120,{isStatic:true,label:'wall'})];
   for(let k=1;k<BINV.length;k++)B.fixed.push(Bodies.rectangle(B.x+k*bw,H-22,4,44,{isStatic:true,label:'div'}));
   Composite.add(world,B.fixed);build(B)});
@@ -54,7 +54,11 @@ function drop(user,side,img){const B=BOARDS[side-1];if(phase(B).lock||balls.leng
   if(side===1)goals.lava=(goals.lava+1)%16;else goals.water=(goals.water+1)%16;balls.push(b);Composite.add(world,b)}
 function handle(user,msg,img){msg=msg.trim();let m;user=(user||'viewer').slice(0,18);
   if(m=msg.match(/^!toll\s+(\d+)/i)){const L=sorted()[0];if(!L||L[0]===user)toll=Math.min(15,+m[1]);return}
-  if(m=msg.match(/^!(\d+)/)){const n=+m[1];if(n===1||n===2)drop(user,n,img)}}
+  if(img&&!avatars[user]){const im=new Image();im.crossOrigin='anonymous';im.src=img;avatars[user]=im}
+  if(m=msg.match(/^!(\d+)/)){const n=+m[1];if(n!==1&&n!==2)return;
+    if(balls.some(b=>b.user===user)||travel.some(t=>t.user===user))return;          // one marble per player
+    const L=loop.find(l=>l.user===user);if(L){if(phase(BOARDS[n-1]).lock)return;leaveLoop(L,n)}else drop(user,n,img);return}
+  if(!(user in lb)&&!loop.some(l=>l.user===user)&&!balls.some(b=>b.user===user)){lb[user]=0;save();joinLoop(user,W/2,10)}}
 function superchat(user){lb[user]=(lb[user]||0)+500;save();goals.rebel=Math.min(5,goals.rebel+1);gain(user,0,640,200)}
 // ---------- step ----------
 Events.on(eng,'beforeUpdate',()=>{BOARDS.forEach(B=>{if(B.ring&&!phase(B).lock){B.ring.a+=0.004*B.ring.dir;placeRing(B)}
@@ -64,7 +68,23 @@ Events.on(eng,'beforeUpdate',()=>{BOARDS.forEach(B=>{if(B.ring&&!phase(B).lock){
     // anti-stuck (not inside Ouroboros, where settling is intended)
     if(s<0.15&&!B.ring){if(++b.still>240){Body.setVelocity(b,{x:(Math.random()-.5)*4,y:-3});b.still=0}}else b.still=0;
     if(b.position.x<B.x-20||b.position.x>B.x+B.w+20)Body.setPosition(b,{x:B.cx,y:b.position.y});   // tunnelled through a wall
-    if(b.position.y>H+40){Composite.remove(world,b);balls.splice(balls.indexOf(b),1)}}});
+    if(b.position.y>H+40){Composite.remove(world,b);balls.splice(balls.indexOf(b),1);joinLoop(b.user,b.position.x,H-10)}}});
+// ---------- outer conga loop ----------
+const LI=22,LW=W-2*LI,LH=H-LI-8,PER=2*(LW+LH),LOOP_MAX=160;let loop=[],travel=[],head=0,spacing=44;
+function pathPt(d){d=((d%PER)+PER)%PER;if(d<LW)return{x:LI+d,y:LI};d-=LW;if(d<LH)return{x:W-LI,y:LI+d};d-=LH;if(d<LW)return{x:W-LI-d,y:H-8};d-=LW;return{x:LI,y:H-LI-d}}
+function joinLoop(user,x,y){if(loop.some(l=>l.user===user))return;if(loop.length>=LOOP_MAX)loop.shift();
+  const s0=head-loop.length*spacing;loop.push({user,s:s0,fx:x,fy:y,ft:performance.now()})}
+function leaveLoop(L,n){const p=pathPt(L.s);loop.splice(loop.indexOf(L),1);const B=BOARDS[n-1];
+  const tx=n===2?1043:B.cx,ty=n===2?40:B.y+10;travel.push({user:L.user,n,x0:p.x,y0:p.y,tx,ty,t:performance.now()})}
+function stepLoop(){const now=performance.now();head+=1.1;const target=Math.min(44,PER/Math.max(1,loop.length));spacing+=(target-spacing)*0.05;
+  loop.forEach((l,i)=>{l.s+=(head-i*spacing-l.s)*0.08});
+  travel=travel.filter(t=>{if(now-t.t<900)return true;if(phase(BOARDS[t.n-1]).lock)joinLoop(t.user,t.tx,t.ty);else drop(t.user,t.n);return false})}
+function drawLoop(){const now=performance.now();ctx.strokeStyle='#ffffff14';ctx.lineWidth=34;ctx.lineJoin='round';ctx.strokeRect(LI,LI,LW,LH);ctx.lineWidth=16;ctx.beginPath();ctx.moveTo(LI,H-8);ctx.lineTo(W-LI,H-8);ctx.stroke();
+  const r=Math.max(10,Math.min(17,spacing/2.4));
+  loop.forEach(l=>{let p=pathPt(l.s);const k=Math.min(1,(now-l.ft)/800);if(k<1)p={x:l.fx+(p.x-l.fx)*k,y:l.fy+(p.y-l.fy)*k};
+    const bot=p.y>H-30,rr2=bot?8:r;avatar(l.user,p.x,p.y,rr2);if(bot)return;const lx=p.x,ly=p.y>H-60?p.y-r-4:p.y+r+11;txt(fmt(lb[l.user]||0),Math.max(14,Math.min(W-14,lx)),ly,10,'#fff','center')});
+  travel.forEach(t=>{const k=Math.min(1,(now-t.t)/900),e=k*k*(3-2*k),x=t.x0+(t.tx-t.x0)*e,y=t.y0+(t.ty-t.y0)*e-Math.sin(k*Math.PI)*60;avatar(t.user,x,y,15)})}
+Events.on(eng,'afterUpdate',stepLoop);
 // ---------- drawing helpers ----------
 function rr(x,y,w,h,r,f){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=f;ctx.fill()}
 function txt(s,x,y,size,col,al='left',b='bold'){ctx.font=`${b} ${size}px Arial`;ctx.fillStyle=col;ctx.textAlign=al;ctx.fillText(s,x,y)}
@@ -117,9 +137,7 @@ function draw(){const now=performance.now(),S=sorted();ctx.fillStyle='#0b0b0b';c
   bucket(498,620,'#7cc8ff');mascot(470,675,'#3aa');txt('= Water Bucket',600,672,14,'#fff','right','');txt(`[${goals.water}/15]`,600,690,14,'#7cc8ff','right');
   pipe(640,670,'!1','#c0261f',false);rr(678,676,160,40,3,'#6b1fa0');txt(`Superchat $ [${goals.rebel}/5]`,758,694,13,'#ffe14d','center');txt('to lead rebellion!',758,711,14,'#ffe14d','center');
   pipe(1043,0,'!2','#5a1fc0',true);
-  // avatar strips
-  let k=0;const slot=(x,y)=>{const e=S[k++];if(!e){ctx.strokeStyle='#333';ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y,17,0,7);ctx.stroke();return}avatar(e[0],x,y,17);txt(fmt(e[1]),x,y+31,12,'#fff','center')};
-  for(let i=0;i<24;i++){const x=24+i*52;if(x>990&&x<1100)continue;slot(x,20)}for(let i=0;i<12;i++){slot(22,80+i*54);slot(1258,80+i*54)}
+  drawLoop();
   // confetti
   confetti=confetti.filter(c=>now-c.t<3000);confetti.forEach(c=>{c.vy+=.25;c.x+=c.vx;c.y+=c.vy;ctx.fillStyle=c.c;ctx.fillRect(c.x,c.y,6,9)});
   requestAnimationFrame(draw)}
@@ -135,6 +153,7 @@ const botNames=[...Array(40)].map(()=>NAMES[Math.random()*NAMES.length|0]+(Math.
 function spawnBots(n){for(let i=0;i<n;i++)setTimeout(()=>handle(botNames[Math.random()*botNames.length|0],'!'+(1+Math.random()*2|0)),i*250)}
 if(Q.get('bots')){const n=+Q.get('bots');spawnBots(n);if(Q.get('botloop'))setInterval(()=>spawnBots(Math.max(1,n/10|0)),2000)}
 if(Q.get('song'))song=Q.get('song');
+if(Q.get('botrepick'))setInterval(()=>loop.forEach(l=>{if(Math.random()<.08)handle(l.user,'!'+(1+Math.random()*2|0))}),1000);
 // ---------- live YouTube chat (API key) ----------
 const key=Q.get('apiKey'),vid=Q.get('videoId');
 async function live(){try{const v=await(await fetch(`https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${vid}&key=${key}`)).json();
