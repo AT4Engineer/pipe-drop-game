@@ -106,3 +106,6 @@ async function live(){try{const v=await(await fetch(`https://www.googleapis.com/
     if(!first)(r.items||[]).forEach(it=>{const s=it.snippet;handle(it.authorDetails.displayName.replace(/^@/,''),s.displayMessage||'',it.authorDetails.profileImageUrl);if(s.type==='superChatEvent')lb[it.authorDetails.displayName.replace(/^@/,'')]=(lb[it.authorDetails.displayName.replace(/^@/,'')]||0)+500});first=false;
     setTimeout(poll,Math.max(+Q.get('poll')||5000,r.pollingIntervalMillis||5000))}catch(e){setTimeout(poll,10000)}};poll()}catch(e){console.warn(e)}}
 if(key&&vid)live();window.handle=handle;
+// local chat bridge (used by the 24/7 streamer): ?bridge=http://127.0.0.1:8790
+const BR=Q.get('bridge');let brSince=0;
+if(BR)(async function bp(){try{const r=await(await fetch(BR+'/chat?since='+brSince)).json();(r.items||[]).forEach(m=>{brSince=Math.max(brSince,m.id);if(m.superchat){const u=m.user;lb[u]=(lb[u]||0)+500;save()}handle(m.user,m.text,m.img)});if(r.song)song=r.song}catch(e){}setTimeout(bp,1000)})();
