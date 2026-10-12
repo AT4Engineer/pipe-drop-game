@@ -52,7 +52,9 @@ function drop(user,side,img){const B=BOARDS[side-1];if(phase(B).lock||balls.leng
   const b=Bodies.circle(px,py,BR,{restitution:.45,friction:.02,frictionAir:.003,density:.002,label:'ball'});b.user=user;b.board=B;b.steps=new Set();b.still=0;b.binDone=false;
   Body.setVelocity(b,{x:(Math.random()-.5)*2,y:1});const L=sorted()[0];if(toll&&L&&L[0]!==user)lb[L[0]]+=toll;
   if(side===1)goals.lava=(goals.lava+1)%16;else goals.water=(goals.water+1)%16;balls.push(b);Composite.add(world,b)}
-function handle(user,msg,img){msg=msg.trim();let m;user=(user||'viewer').slice(0,18);
+function handle(user,msg,img){msg=msg.trim();let m;user=(user||'viewer').slice(0,18);chatLog.push({u:user,m:msg.slice(0,60),t:performance.now()});if(chatLog.length>12)chatLog.shift();
+  if(m=msg.match(/^!duel(?:\s+@?(\S+))?/i)){startDuel(user,m[1]);return}
+  if(m=msg.match(/^!vote\s*(left|right)/i)){if(duel&&duel.phase==='fight')duel.votes[user]=m[1].toLowerCase();return}
   if(m=msg.match(/^!toll\s+(\d+)/i)){const L=sorted()[0];if(!L||L[0]===user)toll=Math.min(15,+m[1]);return}
   if(img&&!avatars[user]){const im=new Image();im.crossOrigin='anonymous';im.src=img;avatars[user]=im}
   if(m=msg.match(/^!(\d+)/)){const n=+m[1];if(n!==1&&n!==2)return;
@@ -85,6 +87,40 @@ function drawLoop(){const now=performance.now();ctx.strokeStyle='#ffffff14';ctx.
     const bot=p.y>H-30,rr2=bot?8:r;avatar(l.user,p.x,p.y,rr2);if(bot)return;const lx=p.x,ly=p.y>H-60?p.y-r-4:p.y+r+11;txt(fmt(lb[l.user]||0),Math.max(14,Math.min(W-14,lx)),ly,10,'#fff','center')});
   travel.forEach(t=>{const k=Math.min(1,(now-t.t)/900),e=k*k*(3-2*k),x=t.x0+(t.tx-t.x0)*e,y=t.y0+(t.ty-t.y0)*e-Math.sin(k*Math.PI)*60;avatar(t.user,x,y,15)})}
 Events.on(eng,'afterUpdate',stepLoop);
+// ---------- duel ----------
+let duel=null,lastDuel=-1e9,chatLog=[],frags=[],centerMsg=null;const DUEL_MS=15000,DUEL_CD=60000;
+function activePlayers(){return[...new Set([...balls.map(b=>b.user),...loop.map(l=>l.user)])]}
+function startDuel(user,name){const now=performance.now(),K=sorted()[0];if(!K||K[0]!==user||duel||now-lastDuel<DUEL_CD)return false;
+  let opp=name&&Object.keys(lb).find(u=>u.toLowerCase()===name.replace(/^@/,'').toLowerCase());
+  if(!opp||opp===user){const c=activePlayers().filter(u=>u!==user);if(!c.length)return false;opp=c[Math.random()*c.length|0]}
+  duel={a:user,b:opp,votes:{},t0:now,phase:'fight',hp:[100,100],hits:[],nextHit:now+900};lastDuel=now;return true}
+function tally(){let l=0,r=0;for(const v of Object.values(duel.votes))v==='left'?l++:r++;return[l,r]}
+function killMarble(u){balls.filter(b=>b.user===u).forEach(b=>{Composite.remove(world,b);balls.splice(balls.indexOf(b),1)});loop=loop.filter(l=>l.user!==u);travel=travel.filter(t=>t.user!==u)}
+function stepDuel(){if(!duel)return;const now=performance.now(),e=now-duel.t0,[l,r]=tally();
+  if(duel.phase==='fight'){const rA=l+r?l/(l+r):.5,p=Math.min(1,e/DUEL_MS);duel.hp=[rA,1-rA].map(x=>Math.max(0,100-p*100*Math.min(1,2*(1-x))));
+    if(now>duel.nextHit){duel.nextHit=now+700+Math.random()*500;duel.hits.push({t:now,d:3+(Math.random()*12|0),side:Math.random()<.5?0:1})}
+    if(e>=DUEL_MS){duel.phase='result';duel.tr=now;duel.final=[l,r];gain(duel.a,50*l,560,300);gain(duel.b,50*r,760,300);
+      duel.loser=l===r?(Math.random()<.5?0:1):(l<r?0:1);const lx=duel.loser?760:560;
+      for(let i=0;i<40;i++)frags.push({x:lx,y:320,vx:(Math.random()-.5)*12,vy:(Math.random()-.8)*10,c:`hsl(${hue(duel.loser?duel.b:duel.a)},70%,${40+Math.random()*30}%)`,t:now,s:4+Math.random()*8});
+      killMarble(duel.loser?duel.b:duel.a)}}
+  else if(duel.phase==='result'&&now-duel.tr>2500){const w=duel.loser?duel.a:duel.b,n=duel.final[duel.loser?0:1];centerMsg={txt:`${w} won the duel with ${n} vote${n===1?'':'s'}`,t:now};duel=null}}
+function drawDuel(){const now=performance.now();
+  frags=frags.filter(f=>now-f.t<1800);frags.forEach(f=>{f.vy+=.35;f.x+=f.vx;f.y+=f.vy;ctx.fillStyle=f.c;ctx.fillRect(f.x,f.y,f.s,f.s)});
+  if(centerMsg&&now-centerMsg.t<5000){rr(454,300,380,50,8,'#000c');otxt(centerMsg.txt,644,333,centerMsg.txt.length>30?16:20,'#ffe14d','#1f7a2e')}
+  if(!duel)return;const[l,r]=duel.final||tally(),e=now-duel.t0;
+  ctx.fillStyle='#0b0b14';ctx.fillRect(444,56,400,332);
+  [[duel.a,'!vote left',l,520],[duel.b,'!vote right',r,768]].forEach(([u,cmd,v,x],i)=>{avatar(u,x,98,26);txt(u,x,142,13,'#fff','center');txt(cmd,x,160,13,i?'#7cb8ff':'#ff7c7c','center');txt(v,x,190,26,'#fff','center')});
+  const rem=Math.max(0,Math.ceil((DUEL_MS-e)/1000));txt(`[0:${String(duel.phase==='fight'?rem:0).padStart(2,'0')}]`,644,110,24,'#fff','center');txt('DUEL',644,80,14,'#ffe14d','center');
+  const rat=l+r?l/(l+r):.5,bx=460,bw=368,mid=bx+bw*rat;ctx.fillStyle='#d23b3b';ctx.fillRect(bx,204,mid-bx,14);ctx.fillStyle='#3b6fd2';ctx.fillRect(mid,204,bx+bw-mid,14);ctx.fillStyle='#fff';ctx.fillRect(mid-1,200,2,22);
+  // fighters
+  const cyc=(e%1200)/1200,lunge=Math.sin(Math.min(1,cyc*2)*Math.PI),gap=110-lunge*80,shake=cyc<.5&&lunge>.9?(Math.random()-.5)*6:0;
+  const pos=[[644-gap,300+shake],[644+gap,300-shake]];
+  [duel.a,duel.b].forEach((u,i)=>{if(duel.phase==='result'&&duel.loser===i)return;const[x,y]=pos[i];avatar(u,x,y,34);
+    ctx.fillStyle='#222';ctx.fillRect(x-36,y-52,72,8);ctx.fillStyle='#3cd65a';ctx.fillRect(x-36,y-52,72*duel.hp[i]/100,8)});
+  duel.hits=duel.hits.filter(h=>now-h.t<900);duel.hits.forEach(h=>{const[x,y]=pos[h.side];ctx.globalAlpha=1-(now-h.t)/900;otxt('-'+h.d,x+(h.side?20:-20),y-60-(now-h.t)/30,18,'#ff6b6b','#400');ctx.globalAlpha=1});
+  if(duel.phase==='result'){const k=Math.min(1,(now-duel.tr)/400);otxt('+'+50*l,520,250-k*20,34,'#ffe14d','#1f7a2e');otxt('+'+50*r,768,250-k*20,34,'#ffe14d','#1f7a2e')}}
+function drawChat(){const now=performance.now();ctx.save();ctx.globalAlpha=.28;chatLog.slice(-8).forEach((c,i,a)=>{txt(`${c.u}: ${c.m}`,452,520+i*14-(a.length-1)*0,11,'#fff','left','')});ctx.restore()}
+Events.on(eng,'afterUpdate',stepDuel);
 // ---------- drawing helpers ----------
 function rr(x,y,w,h,r,f){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=f;ctx.fill()}
 function txt(s,x,y,size,col,al='left',b='bold'){ctx.font=`${b} ${size}px Arial`;ctx.fillStyle=col;ctx.textAlign=al;ctx.fillText(s,x,y)}
@@ -137,7 +173,7 @@ function draw(){const now=performance.now(),S=sorted();ctx.fillStyle='#0b0b0b';c
   bucket(498,620,'#7cc8ff');mascot(470,675,'#3aa');txt('= Water Bucket',600,672,14,'#fff','right','');txt(`[${goals.water}/15]`,600,690,14,'#7cc8ff','right');
   pipe(640,670,'!1','#c0261f',false);rr(678,676,160,40,3,'#6b1fa0');txt(`Superchat $ [${goals.rebel}/5]`,758,694,13,'#ffe14d','center');txt('to lead rebellion!',758,711,14,'#ffe14d','center');
   pipe(1043,0,'!2','#5a1fc0',true);
-  drawLoop();
+  drawChat();drawDuel();drawLoop();
   // confetti
   confetti=confetti.filter(c=>now-c.t<3000);confetti.forEach(c=>{c.vy+=.25;c.x+=c.vx;c.y+=c.vy;ctx.fillStyle=c.c;ctx.fillRect(c.x,c.y,6,9)});
   requestAnimationFrame(draw)}
@@ -153,6 +189,8 @@ const botNames=[...Array(40)].map(()=>NAMES[Math.random()*NAMES.length|0]+(Math.
 function spawnBots(n){for(let i=0;i<n;i++)setTimeout(()=>handle(botNames[Math.random()*botNames.length|0],'!'+(1+Math.random()*2|0)),i*250)}
 if(Q.get('bots')){const n=+Q.get('bots');spawnBots(n);if(Q.get('botloop'))setInterval(()=>spawnBots(Math.max(1,n/10|0)),2000)}
 if(Q.get('song'))song=Q.get('song');
+if(Q.get('botvote'))setInterval(()=>{if(!duel||duel.phase!=='fight')return;const c=activePlayers();for(let i=0;i<3;i++){const u=c[Math.random()*c.length|0];if(u)handle(u,'!vote '+(Math.random()<.6?'left':'right'))}},400);
+if(Q.get('autoduel'))setInterval(()=>{const K=sorted()[0];if(K&&!duel)handle(K[0],'!duel')},3000);
 if(Q.get('botrepick'))setInterval(()=>loop.forEach(l=>{if(Math.random()<.08)handle(l.user,'!'+(1+Math.random()*2|0))}),1000);
 // ---------- live YouTube chat (API key) ----------
 const key=Q.get('apiKey'),vid=Q.get('videoId');
