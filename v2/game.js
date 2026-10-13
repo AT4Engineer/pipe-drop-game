@@ -74,7 +74,8 @@ function handle(user,msg,img){msg=(msg||'').trim();let m;user=(user||'viewer').s
     const L=loop.find(l=>l.user===user);if(L)leaveLoop(L,n);else drop(user,n);return}
   if(!(user in lb)&&!loop.some(l=>l.user===user)&&!balls.some(b=>b.user===user)){lb[user]=0;save();joinLoop(user,W/2,LI)}}
 // ---------- drawing ----------
-function glow(col,b){ctx.shadowColor=col;ctx.shadowBlur=b}
+const OBS=Q.get('obs')==='1',LITE=OBS||Q.get('lite')==='1';
+function glow(col,b){ctx.shadowColor=col;ctx.shadowBlur=LITE?b*.5:b}
 function T(s,x,y,size,col,al='center',wt=700,g=0){ctx.font=`${wt} ${size}px ${F}`;ctx.textAlign=al;ctx.fillStyle=col;if(g)glow(col,g);ctx.fillText(s,x,y);ctx.shadowBlur=0}
 function OT(s,x,y,size,col,stroke,g=14){ctx.font=`900 ${size}px ${F}`;ctx.textAlign='center';ctx.lineJoin='round';ctx.lineWidth=size/6;ctx.strokeStyle=stroke;ctx.strokeText(s,x,y);glow(col,g);ctx.fillStyle=col;ctx.fillText(s,x,y);ctx.shadowBlur=0}
 function RR(x,y,w,h,r,f,s,lw=2){ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(f){ctx.fillStyle=f;ctx.fill()}if(s){ctx.strokeStyle=s;ctx.lineWidth=lw;ctx.stroke()}}
@@ -141,7 +142,7 @@ function drawDuel(now){const x=40,w=265,[l,r]=duel.final||tally(),e=now-duel.t0;
 function drawFx(now){pops=pops.filter(p=>now-p.t<(p.big?1600:1000));pops.forEach(p=>{const life=p.big?1600:1000,k=(now-p.t)/life,s=p.big?Math.min(1,k*5)*(1+.3*Math.sin(Math.min(1,k*5)*Math.PI)):1;
     ctx.globalAlpha=1-Math.max(0,k-.6)/.4;const size=(p.g>=500?56:p.big?34:22)*s;OT(p.txt,p.x,p.y-ease(Math.min(1,k))*40,size,p.g===0?'#888':C.gd,p.g===0?'#222':'#7a3d00',p.g>=500?30:12);ctx.globalAlpha=1});
   parts=parts.filter(p=>now-p.t<p.life);parts.forEach(p=>{p.vy+=.12;p.x+=p.vx;p.y+=p.vy;p.vx*=.98;const a=1-(now-p.t)/p.life;ctx.globalAlpha=a;glow(p.c,8);ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,2.4,0,7);ctx.fill()});ctx.shadowBlur=0;ctx.globalAlpha=1}
-function draw(){const now=performance.now();ctx.save();if(shake>.3){ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.9}
+let lastDraw=0;function draw(){const now=performance.now();if(LITE&&now-lastDraw<31){requestAnimationFrame(draw);return}lastDraw=now;ctx.save();if(shake>.3){ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.9}
   background();stars.forEach(s=>{s.y-=s.v;if(s.y<0)s.y=H;ctx.fillStyle='#ffffff55';ctx.fillRect(s.x,s.y,s.s,s.s)});
   drawHeader(now);drawBoard(now);drawBalls(now);drawLeft(now);drawRight(now);drawLoop(now);drawFx(now);ctx.restore();requestAnimationFrame(draw)}
 document.fonts.load(`700 20px Outfit`).finally(()=>requestAnimationFrame(draw));
