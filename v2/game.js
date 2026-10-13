@@ -73,7 +73,6 @@ function handle(user,msg,img){msg=(msg||'').trim();let m;user=(user||'viewer').s
   if(m=msg.match(/^!(\d+)/)){const n=+m[1];if(n<1||n>LANES)return;if(balls.some(b=>b.user===user&&!b.gold)||travel.some(t=>t.user===user))return;
     const L=loop.find(l=>l.user===user);if(L)leaveLoop(L,n);else drop(user,n);return}
   if(!(user in lb)&&!loop.some(l=>l.user===user)&&!balls.some(b=>b.user===user)){lb[user]=0;save();joinLoop(user,W/2,LI)}}
-function superchat(user){if(!(user in lb)){lb[user]=0;save()}drop(user,1+Math.random()*LANES|0,true);burst(laneX(2),118,60,C.gd)}
 // ---------- drawing ----------
 function glow(col,b){ctx.shadowColor=col;ctx.shadowBlur=b}
 function T(s,x,y,size,col,al='center',wt=700,g=0){ctx.font=`${wt} ${size}px ${F}`;ctx.textAlign=al;ctx.fillStyle=col;if(g)glow(col,g);ctx.fillText(s,x,y);ctx.shadowBlur=0}
@@ -118,10 +117,9 @@ function drawRight(now){const x=975,w=265;RR(x,110,w,420,18,'#0a0a1fcc');glow(C.
     crown(cx,165+bob,52);avatar(u,cx,225,36,C.gd);T(u,cx,286,18,'#fff','center',800);T(fmt(S[0][1])+' gold',cx,306,15,C.gd,'center',700,8)}
   else T('No king yet',x+w/2,230,16,'#888');
   S.slice(1).forEach((e,i)=>{const y=345+i*44;RR(x+14,y-20,w-28,38,10,'#ffffff08');T('#'+(i+2),x+36,y+5,15,C.cy,'center',800);avatar(e[0],x+70,y,14);T(e[0],x+92,y+5,14,'#fff','left',600);T(fmt(e[1]),x+w-24,y+5,14,C.gd,'right',800)});
-  // super chat card
-  RR(x,545,w,95,18,'#1a1204cc');glow(C.gd,12);RR(x,545,w,95,18,null,C.gd,2);ctx.shadowBlur=0;
-  glow(C.gd,20);ctx.fillStyle=C.gd;ctx.beginPath();ctx.arc(x+44,592,22,0,7);ctx.fill();ctx.shadowBlur=0;T('$',x+44,600,22,'#5a3a00','center',900);
-  T('SUPER CHAT',x+78,582,17,C.gd,'left',900);T('= giant golden marble',x+78,602,13,'#fff','left',500);T('worth 3× payout!',x+78,620,13,'#fff','left',500)}
+  // commands card
+  RR(x,545,w,95,18,'#04121acc');glow(C.cy,12);RR(x,545,w,95,18,null,C.cy,2);ctx.shadowBlur=0;
+  T('COMMANDS',x+w/2,572,16,C.cy,'center',900,8);T('!1 – !5  drop your marble',x+20,598,13,'#fff','left',600);T('!duel  ·  !vote left / right',x+20,620,13,'#fff','left',600)}
 function drawLeft(now){const x=40,w=265;
   if(duel)return drawDuel(now);
   RR(x,110,w,300,18,'#0a0a1fcc');glow(C.cy,14);RR(x,110,w,300,18,null,C.cy,2);ctx.shadowBlur=0;
@@ -151,7 +149,7 @@ let acc=0,lastT=performance.now();(function tick(){const t=performance.now();acc
 // ---------- test panel / bots ----------
 const TP=document.getElementById('test'),G=document.getElementById('togg');
 if(Q.get('obs')==='1'){TP.remove();G.remove()}else{G.onclick=()=>TP.classList.toggle('hide');if(Q.get('test')==='1')TP.classList.remove('hide');
-  const send=()=>{const u=document.getElementById('tu').value,m=document.getElementById('tm').value;if(/^!superchat/i.test(m))superchat(u);else handle(u,m)};document.getElementById('ts').onclick=send;document.getElementById('tm').onkeydown=e=>e.key==='Enter'&&send();
+  const send=()=>{const u=document.getElementById('tu').value,m=document.getElementById('tm').value;handle(u,m)};document.getElementById('ts').onclick=send;document.getElementById('tm').onkeydown=e=>e.key==='Enter'&&send();
   document.getElementById('tb').onclick=()=>spawnBots(10);document.getElementById('tr').onclick=()=>{lb={};save();king=null}}
 const NAMES=['LukeH','MrSuperVids','Loic','DeafieTechie','PixelPam','NovaKid','Zed','Rocco','Mia','JJ','Tank','Kiwi','Orbit','Sly','Bee','Ash'];
 const botNames=[...Array(40)].map(()=>NAMES[Math.random()*NAMES.length|0]+(Math.random()*99|0));
@@ -160,18 +158,17 @@ if(Q.get('bots')){const n=+Q.get('bots');spawnBots(n);if(Q.get('botloop'))setInt
 if(Q.get('botrepick'))setInterval(()=>loop.forEach(l=>{if(Math.random()<.08)handle(l.user,'!'+(1+Math.random()*LANES|0))}),1000);
 if(Q.get('botvote'))setInterval(()=>{if(!duel||duel.phase!=='fight')return;const c=activePlayers();for(let i=0;i<3;i++){const u=c[Math.random()*c.length|0];if(u)handle(u,'!vote '+(Math.random()<.6?'left':'right'))}},400);
 if(Q.get('autoduel'))setInterval(()=>{const K=sorted()[0];if(K&&!duel)handle(K[0],'!duel')},3000);
-if(Q.get('botsc'))setInterval(()=>superchat(botNames[Math.random()*botNames.length|0]),+Q.get('botsc')*1000||15000);
 // ---------- live YouTube chat (API key) ----------
 const key=Q.get('apiKey'),vid=Q.get('videoId');
 async function live(){try{const v=await(await fetch(`https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${vid}&key=${key}`)).json();
   const chat=v.items?.[0]?.liveStreamingDetails?.activeLiveChatId;if(!chat){console.warn('No active live chat');return}let tok='',first=true;
   const poll=async()=>{try{const r=await(await fetch(`https://www.googleapis.com/youtube/v3/liveChat/messages?liveChatId=${chat}&part=snippet,authorDetails&key=${key}${tok?'&pageToken='+tok:''}`)).json();
     if(r.error){console.warn(r.error.message);return setTimeout(poll,15000)}tok=r.nextPageToken;
-    if(!first)(r.items||[]).forEach(it=>{const s=it.snippet,u=it.authorDetails.displayName.replace(/^@/,'');avatarImg(u,it.authorDetails.profileImageUrl);if(s.type==='superChatEvent')superchat(u);else handle(u,s.displayMessage||'')});first=false;
+    if(!first)(r.items||[]).forEach(it=>{const s=it.snippet,u=it.authorDetails.displayName.replace(/^@/,'');avatarImg(u,it.authorDetails.profileImageUrl);handle(u,s.displayMessage||'')});first=false;
     setTimeout(poll,Math.max(+Q.get('poll')||8000,r.pollingIntervalMillis||5000))}catch(e){setTimeout(poll,10000)}};poll()}catch(e){console.warn(e)}}
-if(key&&vid)live();window.handle=handle;window.superchat=superchat;
+if(key&&vid)live();window.handle=handle;
 // ---------- local chat bridge ----------
 const BRG=Q.get('bridge');let brSince=0;
-if(BRG)(async function bp(){try{const r=await(await fetch(BRG+'/chat?since='+brSince)).json();(r.items||[]).forEach(m=>{brSince=Math.max(brSince,m.id);avatarImg(m.user,m.img);if(m.superchat)superchat(m.user);else handle(m.user,m.text,m.img)})}catch(e){}setTimeout(bp,1000)})();
+if(BRG)(async function bp(){try{const r=await(await fetch(BRG+'/chat?since='+brSince)).json();(r.items||[]).forEach(m=>{brSince=Math.max(brSince,m.id);avatarImg(m.user,m.img);handle(m.user,m.text,m.img)})}catch(e){}setTimeout(bp,1000)})();
 // test: ?edgetest=1 drops a marble straight into the outer 500 bin every 4s
 if(Q.get('edgetest'))setInterval(()=>{const u='EdgeBot'+(Math.random()*9|0);if(!(u in lb))lb[u]=0;const b=Bodies.circle(BX+16,BIN_TOP-30,12,{restitution:.3,label:'ball'});b.user=u;b.r=12;b.trail=[];b.paid=false;b.still=0;balls.push(b);Composite.add(world,b)},4000);
