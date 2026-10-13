@@ -173,3 +173,5 @@ if(key&&vid)live();window.handle=handle;window.superchat=superchat;
 // ---------- local chat bridge ----------
 const BRG=Q.get('bridge');let brSince=0;
 if(BRG)(async function bp(){try{const r=await(await fetch(BRG+'/chat?since='+brSince)).json();(r.items||[]).forEach(m=>{brSince=Math.max(brSince,m.id);avatarImg(m.user,m.img);if(m.superchat)superchat(m.user);else handle(m.user,m.text,m.img)})}catch(e){}setTimeout(bp,1000)})();
+// test: ?edgetest=1 drops a marble straight into the outer 500 bin every 4s
+if(Q.get('edgetest'))setInterval(()=>{const u='EdgeBot'+(Math.random()*9|0);if(!(u in lb))lb[u]=0;const b=Bodies.circle(BX+16,BIN_TOP-30,12,{restitution:.3,label:'ball'});b.user=u;b.r=12;b.trail=[];b.paid=false;b.still=0;balls.push(b);Composite.add(world,b)},4000);
